@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AnimReminder</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS -->
+    <style>
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #1a1a1a; }
+        ::-webkit-scrollbar-thumb { background: #4a4a4a; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6a6a6a; }
+        .fade-in { animation: fadeIn 0.5s ease-in-out forwards; }
+        .fade-out { animation: fadeOut 0.5s ease-in-out forwards; }
+        .zoom-in { animation: zoomIn 0.4s cubic-bezier(0.165, 0.84, 0.44, 1) forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(10px); } }
+        @keyframes zoomIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .backdrop-blur-active { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div id="app" class="min-h-screen w-full">
+        <header class="sticky top-0 z-40 bg-black/50 backdrop-blur-sm border-b border-gray-800">
+            <div class="container mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center space-x-8">
+                        <a href="#" id="home-link" class="text-2xl font-bold tracking-tighter">AnimReminder</a>
+                        <nav class="hidden md:flex items-center space-x-6 text-sm font-medium text-gray-400">
+                            <a href="#" id="animes-nav" class="hover:text-white transition-colors">Animeler</a>
+                            <a href="#" id="reminders-nav" class="hover:text-white transition-colors">Hatırlatıcılarım</a>
+                        </nav>
+                    </div>
+                    <div class="flex items-center">
+                        <button id="open-search-button" class="flex items-center space-x-2 p-2 rounded-md bg-gray-900 hover:bg-gray-800 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                            <span class="text-xs text-gray-400 hidden sm:block">Aramak için <kbd class="font-sans rounded-sm bg-gray-700 p-1">CTRL</kbd>+<kbd class="font-sans rounded-sm bg-gray-700 p-1">K</kbd></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main id="content" class="container mx-auto p-4 sm:p-6 lg:p-8">
+            <div id="anime-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+                ${Array(18).fill(0).map(() => `<div class="animate-pulse bg-gray-900 rounded-lg aspect-[2/3]"></div>`).join('')}
+            </div>
+            <div id="pagination" class="flex justify-center items-center mt-8 space-x-2"></div>
+        </main>
+        
+        <div id="anime-detail-view" class="fixed inset-0 bg-black z-50 hidden overflow-y-auto"></div>
+        <div id="reminders-view" class="container mx-auto p-4 sm:p-6 lg:p-8 hidden"></div>
+    </div>
+
+    <div id="platform-modal" class="fixed inset-0 z-[60] hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-active" id="platform-modal-backdrop"></div>
+        <div id="platform-modal-content" class="relative z-10 bg-gray-900/80 border border-gray-700 rounded-2xl shadow-xl w-full max-w-md p-6 text-center transform transition-all opacity-0 scale-95"></div>
+    </div>
+
+    <div id="search-modal" class="fixed inset-0 z-[70] hidden items-start justify-center pt-[15vh]">
+        <div class="absolute inset-0 bg-black/60 backdrop-blur-active" id="search-modal-backdrop"></div>
+        <div class="relative z-10 w-full max-w-xl transform transition-all">
+            <div class="bg-gray-900/80 border border-gray-700 rounded-2xl shadow-2xl">
+                <div class="flex items-center p-4 border-b border-gray-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400 mr-3"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    <input type="text" id="search-input" placeholder="Anime ara..." class="w-full bg-transparent text-white placeholder-gray-500 focus:outline-none text-lg">
+                </div>
+                <div id="search-results" class="max-h-[50vh] overflow-y-auto p-2">
+                    <p class="text-center text-gray-500 p-8">Aramaya başlamak için yazın.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="notification-toast" class="fixed bottom-5 right-5 bg-blue-500 text-white py-3 px-5 rounded-lg shadow-lg hidden z-[100] transform transition-all"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- GLOBAL DEĞİŞKENLER VE AYARLAR ---
+        const JIKAN_API_BASE = "https://api.jikan.moe/v4";
+        const VAPID_PUBLIC_KEY = "BNo5YwLhI-M4uU3OaDe_GzZ1i_mG1c1m_L1xX5yZzX8yX7zC8wN9oF6vX5cQ3eD4jK7sR6tW8oG7lI";
+        
+        const elements = {
+            animeGrid: document.getElementById('anime-grid'),
+            pagination: document.getElementById('pagination'),
+            content: document.getElementById('content'),
+            detailView: document.getElementById('anime-detail-view'),
+            remindersView: document.getElementById('reminders-view'),
+            platformModal: document.getElementById('platform-modal'),
+            platformModalContent: document.getElementById('platform-modal-content'),
+            searchModal: document.getElementById('search-modal'),
+            searchInput: document.getElementById('search-input'),
+            searchResults: document.getElementById('search-results'),
+            notificationToast: document.getElementById('notification-toast')
+        };
+
+        let hoverTimeoutId = null;
+        let currentPage = 1;
+        let totalPages = 1;
+        let reminders = {};
+        let currentAnimeForReminder = null;
+        let isCheckingEpisodes = false;
+        
+        // --- FIREBASE KURULUMU ---
+        let db, auth, userId;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'animreminder-default-v2';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        async function initializeFirebase() {
+            if (!firebaseConfig) {
+                console.error("Firebase config not found.");
+                elements.animeGrid.innerHTML = `<p class="text-red-500 col-span-full text-center">Veritabanı bağlantısı kurulamadı.</p>`;
+                return;
+            }
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        await loadReminders();
+                        await setupPushNotifications();
+                    } else {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    }
+                });
+            } catch (error) { console.error("Firebase initialization error:", error); }
+        }
+
+        // --- PUSH BİLDİRİMLERİ VE SERVICE WORKER ---
+        async function setupPushNotifications() {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window)) { return; }
+            try {
+                const registration = await navigator.serviceWorker.register('./service-worker.js');
+                const permission = await Notification.requestPermission();
+                if (permission !== 'granted') { return; }
+                let subscription = await registration.pushManager.getSubscription();
+                if (subscription === null) {
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: VAPID_PUBLIC_KEY
+                    });
+                    console.log('New push subscription created.');
+                }
+            } catch (error) { console.error('Failed to subscribe the user: ', error); }
+        }
+
+        // --- API İŞLEMLERİ VE VERİ İŞLEME ---
+        async function fetchWithRateLimit(url) {
+            await new Promise(resolve => setTimeout(resolve, 350));
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return await response.json();
+            } catch (error) { console.error("API fetch error:", error); return null; }
+        }
+
+        function getBaseTitle(title) {
+            return title.replace(/(?:\s*(?:Part|Season|Cour|S\d{1,2})\s*\d*|\s*:[^:]*$|\s*-\s*[^-\s]*\s*Hen\s*-)/i, '').trim();
+        }
+
+        async function getTopAnimes(page = 1) {
+            elements.animeGrid.innerHTML = `${Array(18).fill(0).map(() => `<div class="animate-pulse bg-gray-900 rounded-lg aspect-[2/3]"></div>`).join('')}`;
+            const data = await fetchWithRateLimit(`${JIKAN_API_BASE}/top/anime?sfw=true&page=${page}&limit=25`);
+            if (data) {
+                const uniqueFranchises = new Map();
+                for (const anime of data.data) {
+                    const baseTitle = getBaseTitle(anime.title);
+                    if (!uniqueFranchises.has(baseTitle)) {
+                        uniqueFranchises.set(baseTitle, anime);
+                    }
+                }
+                const filteredAnimes = Array.from(uniqueFranchises.values()).slice(0, 18);
+                renderAnimeGrid(filteredAnimes);
+                totalPages = data.pagination.last_visible_page;
+                renderPagination();
+            } else {
+                elements.animeGrid.innerHTML = `<p class="text-red-500 col-span-full text-center">Animeler yüklenirken bir hata oluştu.</p>`;
+            }
+        }
+
+        async function searchAnimes(query) {
+            if (query.length < 3) {
+                elements.searchResults.innerHTML = `<p class="text-center text-gray-500 p-8">Aramak için en az 3 karakter girin.</p>`;
+                return;
+            }
+            elements.searchResults.innerHTML = `<p class="text-center text-gray-500 p-8">Aranıyor...</p>`;
+            const data = await fetchWithRateLimit(`${JIKAN_API_BASE}/anime?q=${encodeURIComponent(query)}&sfw=true&limit=10`);
+            if (data && data.data.length > 0) {
+                renderSearchResults(data.data);
+            } else {
+                elements.searchResults.innerHTML = `<p class="text-center text-gray-500 p-8">"'${query}'" için sonuç bulunamadı.</p>`;
+            }
+        }
+        
+        // --- RENDER FONKSİYONLARI ---
+        function renderAnimeGrid(animes) {
+            elements.animeGrid.innerHTML = animes.map(createAnimeCard).join('');
+            attachCardEventListeners();
+        }
+
+        function createAnimeCard(anime) {
+            return `
+                <div class="anime-card group relative rounded-lg overflow-hidden cursor-pointer transition-transform duration-300 ease-in-out transform hover:scale-105 hover:z-10" data-id="${anime.mal_id}">
+                    <div class="card-content aspect-[2/3] w-full transition-all duration-500 ease-in-out">
+                        <img src="${anime.images.webp.large_image_url}" alt="${anime.title}" class="w-full h-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/400x600/000000/FFFFFF?text=Image+Not+Found';">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                        <h3 class="absolute bottom-2 left-2 right-2 text-sm font-bold text-white p-1 leading-tight">${anime.title}</h3>
+                    </div>
+                    <div class="trailer-container absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ease-in-out pointer-events-none"></div>
+                </div>`;
+        }
+
+        function renderPagination() {
+            let paginationHTML = '';
+            const maxPagesToShow = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
+            let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+            if (endPage - startPage + 1 < maxPagesToShow) { startPage = Math.max(1, endPage - maxPagesToShow + 1); }
+            paginationHTML += `<button data-page="${currentPage - 1}" class="page-btn px-3 py-1 rounded-md bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === 1 ? 'disabled' : ''}>&lt;</button>`;
+            if (startPage > 1) { paginationHTML += `<button data-page="1" class="page-btn px-3 py-1 rounded-md bg-gray-800 hover:bg-gray-700">1</button>`; if (startPage > 2) paginationHTML += `<span class="px-3 py-1 text-gray-500">...</span>`; }
+            for (let i = startPage; i <= endPage; i++) { paginationHTML += `<button data-page="${i}" class="page-btn px-3 py-1 rounded-md ${i === currentPage ? 'bg-white text-black' : 'bg-gray-800 hover:bg-gray-700'}">${i}</button>`; }
+            if (endPage < totalPages) { if (endPage < totalPages - 1) paginationHTML += `<span class="px-3 py-1 text-gray-500">...</span>`; paginationHTML += `<button data-page="${totalPages}" class="page-btn px-3 py-1 rounded-md bg-gray-800 hover:bg-gray-700">${totalPages}</button>`; }
+            paginationHTML += `<button data-page="${currentPage + 1}" class="page-btn px-3 py-1 rounded-md bg-gray-800 hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed" ${currentPage === totalPages ? 'disabled' : ''}>&gt;</button>`;
+            elements.pagination.innerHTML = paginationHTML;
+        }
+
+        async function renderAnimeDetail(animeId) {
+            elements.detailView.innerHTML = `<div class="flex items-center justify-center h-full"><div class="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white"></div></div>`;
+            showView('detail');
+            const data = await fetchWithRateLimit(`${JIKAN_API_BASE}/anime/${animeId}/full`);
+            if (!data || !data.data) { elements.detailView.innerHTML = `<p class="text-red-500 text-center">Detaylar yüklenemedi.</p>`; return; }
+            const anime = data.data;
+            currentAnimeForReminder = anime;
+            const isReminded = reminders[anime.mal_id];
+            elements.detailView.innerHTML = `
+                <div class="w-full h-full zoom-in">
+                    <div class="absolute top-0 left-0 w-full h-1/2">
+                        <img src="${anime.images.webp.large_image_url}" class="w-full h-full object-cover opacity-30" onerror="this.onerror=null;this.src='https://placehold.co/1920x1080/000000/FFFFFF?text=Banner';">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black to-transparent"></div>
+                    </div>
+                    <button id="close-detail-view" class="absolute top-5 right-5 text-white bg-black/50 rounded-full p-2 hover:bg-white/20 transition-colors z-10"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+                    <div class="relative container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-12"><div class="flex flex-col md:flex-row gap-8"><div class="w-full md:w-1/3 lg:w-1/4 flex-shrink-0"><img src="${anime.images.webp.large_image_url}" class="rounded-lg shadow-2xl w-full aspect-[2/3] object-cover" onerror="this.onerror=null;this.src='https://placehold.co/400x600/000000/FFFFFF?text=Image';"></div><div class="w-full md:w-2/3 lg:w-3/4 mt-4 md:mt-0"><h1 class="text-4xl lg:text-5xl font-extrabold tracking-tighter">${anime.title}</h1><p class="text-lg text-gray-400 mt-1">${anime.title_japanese}</p><div class="flex items-center flex-wrap gap-x-4 gap-y-2 mt-4 text-sm"><span class="bg-yellow-500 text-black font-bold px-2 py-1 rounded">★ ${anime.score || 'N/A'}</span><span>${anime.type}</span><span>${anime.episodes || '?'} Bölüm</span><span>${anime.status}</span></div><p class="mt-6 text-gray-300 leading-relaxed max-w-3xl">${anime.synopsis || 'Açıklama bulunamadı.'}</p><div class="mt-8">${isReminded ? `<button id="remove-reminder-btn" class="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-lg transition-colors text-lg" data-id="${anime.mal_id}">Hatırlatıcıyı Kaldır</button>` : `<button id="add-reminder-btn" class="bg-white hover:bg-gray-200 text-black font-bold py-3 px-6 rounded-lg transition-colors text-lg">Hatırlatıcı Ekle</button>`}</div></div></div></div></div>`;
+            document.getElementById('close-detail-view').addEventListener('click', () => showView('home'));
+            const addBtn = document.getElementById('add-reminder-btn');
+            if(addBtn) addBtn.addEventListener('click', showPlatformModal);
+            const removeBtn = document.getElementById('remove-reminder-btn');
+            if(removeBtn) removeBtn.addEventListener('click', (e) => removeReminder(e.target.dataset.id));
+        }
+
+        function renderRemindersPage() {
+            showView('reminders');
+            let content = `<h1 class="text-3xl font-bold mb-8">Hatırlatıcılarım</h1>`;
+            if (Object.keys(reminders).length === 0) {
+                content += `<p class="text-gray-400">Henüz hiç hatırlatıcı eklemediniz.</p>`;
+            } else {
+                content += `<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">`;
+                for (const animeId in reminders) {
+                    const reminder = reminders[animeId];
+                    content += `
+                        <div class="bg-gray-900 rounded-lg overflow-hidden flex flex-col">
+                            <img src="${reminder.imageUrl}" class="w-full h-40 object-cover" onerror="this.onerror=null;this.src='https://placehold.co/600x240/000000/FFFFFF?text=Banner';">
+                            <div class="p-4 flex flex-col flex-grow">
+                                <h3 class="font-bold text-lg flex-grow">${reminder.title}</h3>
+                                <div class="flex items-center justify-between mt-4">
+                                    <span class="text-sm text-gray-400 bg-gray-800 px-2 py-1 rounded">${reminder.platform}</span>
+                                    <button class="remove-reminder-list-btn bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-3 rounded-lg transition-colors text-sm" data-id="${animeId}">Kaldır</button>
+                                </div>
+                            </div>
+                        </div>`;
+                }
+                content += `</div>`;
+            }
+            elements.remindersView.innerHTML = content;
+            document.querySelectorAll('.remove-reminder-list-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => removeReminder(e.target.dataset.id));
+            });
+        }
+
+        function renderSearchResults(results) {
+            elements.searchResults.innerHTML = results.map(anime => `
+                <a href="#" class="search-result-item flex items-center p-3 hover:bg-gray-800 rounded-lg transition-colors" data-id="${anime.mal_id}">
+                    <img src="${anime.images.webp.image_url}" class="w-10 h-14 object-cover rounded-md mr-4" onerror="this.onerror=null;this.src='https://placehold.co/40x56/000000/FFFFFF?text=N/A';">
+                    <div>
+                        <p class="font-semibold text-white">${anime.title}</p>
+                        <p class="text-sm text-gray-400">${anime.type} - ${anime.year || 'N/A'}</p>
+                    </div>
+                </a>`).join('');
+
+            document.querySelectorAll('.search-result-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const animeId = e.currentTarget.dataset.id;
+                    hideSearchModal();
+                    renderAnimeDetail(animeId);
+                });
+            });
+        }
+
+        // --- VERİTABANI İŞLEMLERİ ---
+        async function loadReminders() {
+            if (!userId || !db) return;
+            const remindersCol = collection(db, 'artifacts', appId, 'users', userId, 'reminders');
+            onSnapshot(remindersCol, (snapshot) => {
+                reminders = {};
+                snapshot.forEach(doc => { reminders[doc.id] = doc.data(); });
+                if (!isCheckingEpisodes) checkNewEpisodes();
+                if (!elements.remindersView.classList.contains('hidden')) renderRemindersPage();
+                if (!elements.detailView.classList.contains('hidden') && currentAnimeForReminder) renderAnimeDetail(currentAnimeForReminder.mal_id);
+            });
+        }
+
+        async function addReminder(anime, platform) {
+            if (!userId || !db) return;
+            const reminderRef = doc(db, 'artifacts', appId, 'users', userId, 'reminders', anime.mal_id.toString());
+            await setDoc(reminderRef, {
+                title: anime.title, platform: platform, imageUrl: anime.images.webp.large_image_url,
+                addedAt: new Date(), lastSeenEpisodes: anime.episodes || 0
+            });
+            hidePlatformModal();
+            showNotification(`'${anime.title}' için hatırlatıcı kuruldu!`, 'toast');
+        }
+
+        async function removeReminder(animeId) {
+            if (!userId || !db) return;
+            await deleteDoc(doc(db, 'artifacts', appId, 'users', userId, 'reminders', animeId.toString()));
+            showNotification('Hatırlatıcı kaldırıldı.', 'toast');
+        }
+
+        async function checkNewEpisodes() {
+            isCheckingEpisodes = true;
+            for (const animeId in reminders) {
+                const reminder = reminders[animeId];
+                const data = await fetchWithRateLimit(`${JIKAN_API_BASE}/anime/${animeId}`);
+                if (data && data.data) {
+                    const latestEpisodeCount = data.data.episodes;
+                    if (latestEpisodeCount && latestEpisodeCount > reminder.lastSeenEpisodes) {
+                        const message = `'${reminder.title}' için yeni bir bölüm yayınlandı!`;
+                        showNotification(message, 'push');
+                        const reminderRef = doc(db, 'artifacts', appId, 'users', userId, 'reminders', animeId.toString());
+                        await setDoc(reminderRef, { lastSeenEpisodes: latestEpisodeCount }, { merge: true });
+                    }
+                }
+            }
+            isCheckingEpisodes = false;
+        }
+
+        // --- MODAL, GÖRÜNÜM VE BİLDİRİM YÖNETİMİ ---
+        function showView(viewName) {
+            elements.content.classList.add('hidden');
+            elements.detailView.classList.add('hidden');
+            elements.remindersView.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+            if (viewName === 'detail') document.body.style.overflow = 'hidden';
+            elements[{'home':'content', 'detail':'detailView', 'reminders':'remindersView'}[viewName]].classList.remove('hidden');
+        }
+
+        function showPlatformModal() {
+            const platformIcons = { 'Netflix': 'https://i.ibb.co/jk3syT6Y/6867.jpg', 'Crunchyroll': 'https://i.ibb.co/B2qTKxpZ/6865.png', 'Prime Video': 'https://i.ibb.co/tTjcQ88Z/6868.png', 'Open Anime': 'https://i.ibb.co/fYTSbZxQ/6866.png' };
+            elements.platformModalContent.innerHTML = `
+                <h2 class="text-2xl font-bold mb-2">Platform Seç</h2><p class="text-gray-400 mb-6">Hangi platform için hatırlatıcı kurmak istersin?</p>
+                <div class="grid grid-cols-2 gap-4 mb-6">${Object.entries(platformIcons).map(([name, url]) => `<button class="platform-choice bg-gray-800 p-4 rounded-lg flex flex-col items-center justify-center hover:bg-gray-700 transition-colors" data-platform="${name}"><img src="${url}" alt="${name}" class="h-12 w-12 object-contain rounded-md mb-2" onerror="this.onerror=null;this.src='https://placehold.co/48x48/FFFFFF/000000?text=${name.charAt(0)}';"><span class="font-semibold">${name}</span></button>`).join('')}</div>
+                <div id="final-reminder-step" class="hidden"></div>`;
+            elements.platformModal.classList.remove('hidden');
+            elements.platformModal.classList.add('flex');
+            setTimeout(() => elements.platformModalContent.classList.remove('opacity-0', 'scale-95'), 10);
+            document.querySelectorAll('.platform-choice').forEach(btn => btn.addEventListener('click', (e) => {
+                const platform = e.currentTarget.dataset.platform;
+                document.getElementById('final-reminder-step').innerHTML = `<img src="${platformIcons[platform]}" class="h-16 mx-auto mb-4 rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/64x64/FFFFFF/000000?text=${platform.charAt(0)}';"><button id="confirm-reminder-btn" class="w-full bg-white text-black font-bold py-3 px-6 rounded-lg hover:bg-gray-200 transition-colors">Hatırlatıcıyı Kur</button>`;
+                document.getElementById('final-reminder-step').classList.remove('hidden');
+                document.getElementById('confirm-reminder-btn').addEventListener('click', () => addReminder(currentAnimeForReminder, platform));
+            }));
+        }
+
+        function hidePlatformModal() {
+            elements.platformModalContent.classList.add('opacity-0', 'scale-95');
+            setTimeout(() => {
+                elements.platformModal.classList.add('hidden');
+                elements.platformModal.classList.remove('flex');
+            }, 200);
+        }
+
+        function showSearchModal() {
+            elements.searchModal.classList.remove('hidden');
+            elements.searchModal.classList.add('flex');
+            elements.searchInput.focus();
+        }
+
+        function hideSearchModal() {
+            elements.searchModal.classList.add('hidden');
+            elements.searchModal.classList.remove('flex');
+            elements.searchInput.value = '';
+            elements.searchResults.innerHTML = `<p class="text-center text-gray-500 p-8">Aramaya başlamak için yazın.</p>`;
+        }
+        
+        function showNotification(message, type = 'toast') {
+            if (type === 'push' && 'serviceWorker' in navigator && Notification.permission === 'granted') {
+                navigator.serviceWorker.ready.then(registration => {
+                    registration.showNotification('AnimReminder', {
+                        body: message,
+                        icon: 'https://cdn-icons-png.flaticon.com/512/3031/3031113.png'
+                    });
+                });
+            } else {
+                elements.notificationToast.textContent = message;
+                elements.notificationToast.classList.remove('hidden');
+                setTimeout(() => elements.notificationToast.classList.add('hidden'), 4000);
+            }
+        }
+
+        function attachCardEventListeners() {
+            document.querySelectorAll('.anime-card').forEach(card => {
+                const trailerContainer = card.querySelector('.trailer-container');
+                const cardContent = card.querySelector('.card-content');
+                card.addEventListener('mouseenter', () => {
+                    hoverTimeoutId = setTimeout(async () => {
+                        const animeId = card.dataset.id;
+                        const data = await fetchWithRateLimit(`${JIKAN_API_BASE}/anime/${animeId}`);
+                        if (data && data.data && data.data.trailer.youtube_id) {
+                            trailerContainer.innerHTML = `<iframe class="w-full h-full" src="https://www.youtube.com/embed/${data.data.trailer.youtube_id}?autoplay=1&mute=1&controls=0&loop=1&playlist=${data.data.trailer.youtube_id}" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                            cardContent.classList.add('aspect-[16/9]');
+                            trailerContainer.classList.remove('pointer-events-none');
+                        }
+                    }, 2000);
+                });
+                card.addEventListener('mouseleave', () => {
+                    clearTimeout(hoverTimeoutId);
+                    trailerContainer.innerHTML = '';
+                    cardContent.classList.remove('aspect-[16/9]');
+                    trailerContainer.classList.add('pointer-events-none');
+                });
+                card.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'IFRAME') return;
+                    renderAnimeDetail(card.dataset.id);
+                });
+            });
+        }
+
+        // --- EVENT LISTENERS (TAM VE HATASIZ) ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeFirebase().then(() => getTopAnimes(currentPage));
+            
+            // Navigasyon
+            document.getElementById('home-link').addEventListener('click', (e) => { e.preventDefault(); getTopAnimes(1); showView('home'); });
+            document.getElementById('animes-nav').addEventListener('click', (e) => { e.preventDefault(); getTopAnimes(1); showView('home'); });
+            document.getElementById('reminders-nav').addEventListener('click', (e) => { e.preventDefault(); renderRemindersPage(); });
+            
+            // Sayfalama
+            elements.pagination.addEventListener('click', (e) => { if (e.target.classList.contains('page-btn') && !e.target.disabled) { currentPage = parseInt(e.target.dataset.page); getTopAnimes(currentPage); window.scrollTo(0, 0); } });
+            
+            // Modal Kapatma
+            elements.platformModal.addEventListener('click', (e) => { if (e.target.id === 'platform-modal' || e.target.id === 'platform-modal-backdrop') { hidePlatformModal(); } });
+            elements.searchModal.addEventListener('click', (e) => { if (e.target.id === 'search-modal' || e.target.id === 'search-modal-backdrop') { hideSearchModal(); } });
+
+            // Arama
+            document.getElementById('open-search-button').addEventListener('click', showSearchModal);
+            let searchDebounceTimeout;
+            elements.searchInput.addEventListener('input', () => {
+                clearTimeout(searchDebounceTimeout);
+                searchDebounceTimeout = setTimeout(() => {
+                    searchAnimes(elements.searchInput.value);
+                }, 300);
+            });
+
+            // Klavye Kısayolları
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    hidePlatformModal();
+                    hideSearchModal();
+                    if (!elements.detailView.classList.contains('hidden')) { showView('home'); }
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    showSearchModal();
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
+
